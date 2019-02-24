@@ -110,7 +110,7 @@ import static com.eveningoutpost.dexdrip.UtilityModels.StatusItem.Highlight.CRIT
 import static com.eveningoutpost.dexdrip.UtilityModels.StatusItem.Highlight.NORMAL;
 import static com.eveningoutpost.dexdrip.UtilityModels.StatusItem.Highlight.NOTICE;
 import static com.eveningoutpost.dexdrip.utils.DexCollectionType.DexcomG5;
-
+import static com.eveningoutpost.dexdrip.xdrip.gs;
 
 /*
 import com.polidea.rxandroidble2.RxBleClient;
@@ -453,7 +453,7 @@ public class Ob1G5CollectionService extends G5BaseService {
 
     private synchronized void scan_for_device() {
         if (state == SCAN) {
-            msg("Scanning");
+            msg(gs(R.string.scanning));
             stopScan();
             tryLoadingSavedMAC(); // did we already find it?
             if (always_scan || scan_next_run || (transmitterMAC == null) || (!transmitterID.equals(transmitterIDmatchingMAC)) || (static_last_timestamp < 1)) {
@@ -471,7 +471,12 @@ public class Ob1G5CollectionService extends G5BaseService {
                             .setDeviceAddress(historicalTransmitterMAC)
                             .build();
                 } else {
-                    filter = new ScanFilter.Builder().build();
+                    final String localTransmitterID = transmitterID;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && localTransmitterID != null && localTransmitterID.length() > 4) {
+                        filter = new ScanFilter.Builder().setDeviceName(getTransmitterBluetoothName()).build();
+                    } else {
+                        filter = new ScanFilter.Builder().build();
+                    }
                 }
 
 
@@ -653,7 +658,7 @@ public class Ob1G5CollectionService extends G5BaseService {
     }
 
     private String getTransmitterBluetoothName() {
-        final String transmitterIdLastTwo = Extensions.lastTwoCharactersOfString(transmitterID);
+        final String transmitterIdLastTwo = getLastTwoCharacters(transmitterID);
         // todo check for bad config
         return "Dexcom" + transmitterIdLastTwo;
     }
