@@ -26,3 +26,14 @@ allprojects {
         jcenter()
     }
 }
+
+plugins {
+    id "org.sonarqube" version "2.2"
+}
+
+sonarqube {
+    properties {
+        property "sonar.projectName", "xDrip"
+        property "sonar.projectKey", "asienicki_xDrip"
+    }
+}
