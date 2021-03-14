@@ -9,6 +9,7 @@ import android.text.SpannableString;
 import com.eveningoutpost.dexdrip.Models.BgReading;
 import com.eveningoutpost.dexdrip.Models.JoH;
 import com.eveningoutpost.dexdrip.Models.UserError;
+import com.eveningoutpost.dexdrip.R;
 import com.eveningoutpost.dexdrip.UtilityModels.Constants;
 import com.eveningoutpost.dexdrip.UtilityModels.Inevitable;
 import com.eveningoutpost.dexdrip.UtilityModels.Pref;
@@ -30,6 +31,7 @@ import static com.eveningoutpost.dexdrip.cgm.sharefollow.ShareConstants.MAX_RECO
 import static com.eveningoutpost.dexdrip.cgm.sharefollow.ShareConstants.NON_US_SHARE_BASE_URL;
 import static com.eveningoutpost.dexdrip.cgm.sharefollow.ShareConstants.US_SHARE_BASE_URL;
 import static com.eveningoutpost.dexdrip.utils.DexCollectionType.SHFollow;
+import static com.eveningoutpost.dexdrip.xdrip.gs;
 
 /**
  * jamorham
@@ -65,7 +67,7 @@ public class ShareFollowService extends ForegroundService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        final PowerManager.WakeLock wl = JoH.getWakeLock("SHFollow-osc", 60000);
+        final PowerManager.WakeLock wl = JoH.getWakeLock("SHFollow-osc", 60_000);
         try {
 
             UserError.Log.d(TAG, "WAKE UP WAKE UP WAKE UP");
@@ -93,7 +95,13 @@ public class ShareFollowService extends ForegroundService {
                 }
 
                 if (JoH.ratelimit("last-sh-follow-poll", 5)) {
-                    Inevitable.task("SH-Follow-Work", 200, () -> downloader.doEverything(MAX_RECORDS_TO_ASK_FOR));
+                    Inevitable.task("SH-Follow-Work", 200, () -> {
+                        try {
+                            downloader.doEverything(MAX_RECORDS_TO_ASK_FOR);
+                        } catch (NullPointerException e) {
+                            UserError.Log.e(TAG, "Caught concurrency exception when trying to run doeverything");
+                        }
+                    });
                     lastPoll = JoH.tsl();
                 }
             } else {
@@ -209,7 +217,7 @@ public class ShareFollowService extends ForegroundService {
         }
         megaStatus.add(new StatusItem("Next poll time", JoH.dateTimeText(wakeup_time)));
         megaStatus.add(new StatusItem());
-        megaStatus.add(new StatusItem("Buggy Samsung", JoH.buggy_samsung ? "Yes" : "No"));
+        megaStatus.add(new StatusItem("Buggy Samsung", JoH.buggy_samsung ? gs(R.string.yes) : gs(R.string.no)));
 
         return megaStatus;
     }

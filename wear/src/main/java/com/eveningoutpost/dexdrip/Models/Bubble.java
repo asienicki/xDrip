@@ -64,7 +64,8 @@ public class Bubble {
             PersistentStore.setString("Bubblebattery", Integer.toString(buffer[4]));
             Pref.setInt("bridge_battery", buffer[4]);
             String bubblefirmware = buffer[2] + "." + buffer[3];
-            PersistentStore.setString("BubbleHArdware", Integer.toString(buffer[2]) + ".0");
+            String bubbleHArdware = buffer[buffer.length-2] + "." + buffer[buffer.length-1];
+            PersistentStore.setString("BubbleHArdware", bubbleHArdware);
             PersistentStore.setString("BubbleFirmware", bubblefirmware);
             ByteBuffer ackMessage = ByteBuffer.allocate(6);
             ackMessage.put(0, (byte) 0x02);
@@ -122,7 +123,7 @@ public class Bubble {
 
 
     static void addData(byte[] buffer) {
-        System.arraycopy(buffer, 4, s_full_data, s_acumulatedSize, 16);
+        System.arraycopy(buffer, 4, s_full_data, s_acumulatedSize, buffer.length-4);
         s_acumulatedSize = s_acumulatedSize + buffer.length - 4;
         AreWeDone();
     }
