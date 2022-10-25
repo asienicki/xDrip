@@ -5,6 +5,13 @@ package com.eveningoutpost.dexdrip;
 
 
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+import static com.eveningoutpost.dexdrip.Home.SHOWCASE_REMINDER3;
+import static com.eveningoutpost.dexdrip.Models.JoH.dateTimeText;
+import static com.eveningoutpost.dexdrip.Models.JoH.hourMinuteString;
+import static com.eveningoutpost.dexdrip.Models.JoH.msSince;
+import static com.eveningoutpost.dexdrip.Models.JoH.niceTimeScalarNatural;
+import static com.eveningoutpost.dexdrip.Models.JoH.tsl;
+import static lecho.lib.hellocharts.animation.ChartDataAnimator.DEFAULT_ANIMATION_DURATION;
 
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
@@ -20,7 +27,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
@@ -86,15 +92,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static com.eveningoutpost.dexdrip.Home.SHOWCASE_REMINDER3;
-import static com.eveningoutpost.dexdrip.Models.JoH.dateTimeText;
-import static com.eveningoutpost.dexdrip.Models.JoH.hourMinuteString;
-import static com.eveningoutpost.dexdrip.Models.JoH.msSince;
-import static com.eveningoutpost.dexdrip.Models.JoH.niceTimeScalarNatural;
-import static com.eveningoutpost.dexdrip.Models.JoH.niceTimeTill;
-import static com.eveningoutpost.dexdrip.Models.JoH.tsl;
-import static lecho.lib.hellocharts.animation.ChartDataAnimator.DEFAULT_ANIMATION_DURATION;
 
 import lombok.val;
 
@@ -577,30 +574,20 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
         showReminderDialog(v, null, 0);
     }
 
-    private synchronized MediaPlayer playSelectedSound() {
-        return JoH.playSoundUri((selectedSound != null) ? selectedSound : JoH.getResourceURI(R.raw.reminder_default_notification));
+    private synchronized void playSelectedSound() {
+        JoH.playSoundUri((selectedSound != null) ? selectedSound : JoH.getResourceURI(R.raw.reminder_default_notification));
     }
 
     public void chooseReminderSound(View v) {
-        final MediaPlayer player = playSelectedSound();
+        playSelectedSound();
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.select_new_sound_source)
                 .setOnDismissListener(dialog -> {
-                    try {
-                        player.stop();
-                        player.release();
-                    } catch (Exception e) {
-                        //
-                    }
+                        JoH.stopSoundUri();
                 })
                 .setItems(R.array.reminderAlertType, (dialog, which) -> {
-                    try {
-                        player.stop();
-                        player.release();
-                    } catch (Exception e) {
-                        //
-                    }
+                    JoH.stopSoundUri();
                     if (which == 0) {
                         final Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);
                         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, xdrip.getAppContext().getString(R.string.select_tone_alert));
@@ -625,8 +612,8 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
 
     private void chooseFile() {
         final Intent fileIntent = new Intent();
-        fileIntent.setType("audio/mpeg3");
-        fileIntent.setAction(Intent.ACTION_GET_CONTENT);
+        fileIntent.setType("audio/*");
+        fileIntent.setAction(Intent.ACTION_OPEN_DOCUMENT);
         startActivityForResult(Intent.createChooser(fileIntent, xdrip.getAppContext().getString(R.string.select_file_reminder_sound)), REQUEST_CODE_CHOOSE_FILE);
     }
 
@@ -676,11 +663,12 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
                     final Uri selectedFileUri = data.getData();
                     //JoH.static_toast_long(selectedFileUri.toString());
                     try {
+                        getContentResolver().takePersistableUriPermission(selectedFileUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         selectedSound = selectedFileUri.toString();
                         PersistentStore.setString("reminders-last-sound", selectedSound);
                         // play it?
-                    } catch (NullPointerException e) {
-                        JoH.static_toast_long(xdrip.getAppContext().getString(R.string.problem_with_sound));
+                    } catch (Exception e) {
+                        JoH.static_toast_long(xdrip.getAppContext().getString(R.string.problem_with_sound) + " " + e.getMessage());
                     }
                 }
             }
@@ -1289,7 +1277,11 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
 
     private void setFloaterText(String msg) {
         Log.d(TAG, "Setting floater text:" + msg);
-        floaterText.setText(msg);
+        try {
+            floaterText.setText(msg);
+        } catch (Exception e) {
+            UserError.Log.e(TAG, "Unable to set floater text to: " + msg);
+        }
     }
 
     private void animateSnoozeFloater(float start, float end, Interpolator interpolator) {
