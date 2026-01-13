@@ -27,25 +27,25 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 
-import com.eveningoutpost.dexdrip.ImportedLibraries.usbserial.util.HexDump;
-import com.eveningoutpost.dexdrip.Models.ActiveBluetoothDevice;
-import com.eveningoutpost.dexdrip.Models.GlucoseData;
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.Libre2SensorData;
-import com.eveningoutpost.dexdrip.Models.LibreBlock;
-import com.eveningoutpost.dexdrip.Models.LibreOOPAlgorithm;
-import com.eveningoutpost.dexdrip.Models.ReadingData;
-import com.eveningoutpost.dexdrip.Models.SensorSanity;
-import com.eveningoutpost.dexdrip.Models.UserError;
-import com.eveningoutpost.dexdrip.Models.UserError.Log;
-import com.eveningoutpost.dexdrip.UtilityModels.CollectionServiceStarter;
-import com.eveningoutpost.dexdrip.UtilityModels.Constants;
-import com.eveningoutpost.dexdrip.UtilityModels.LibreUtils;
-import com.eveningoutpost.dexdrip.UtilityModels.PersistentStore;
-import com.eveningoutpost.dexdrip.UtilityModels.Pref;
+import com.eveningoutpost.dexdrip.importedlibraries.usbserial.util.HexDump;
+import com.eveningoutpost.dexdrip.models.ActiveBluetoothDevice;
+import com.eveningoutpost.dexdrip.models.GlucoseData;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.Libre2SensorData;
+import com.eveningoutpost.dexdrip.models.LibreBlock;
+import com.eveningoutpost.dexdrip.models.LibreOOPAlgorithm;
+import com.eveningoutpost.dexdrip.models.ReadingData;
+import com.eveningoutpost.dexdrip.models.SensorSanity;
+import com.eveningoutpost.dexdrip.models.UserError;
+import com.eveningoutpost.dexdrip.models.UserError.Log;
+import com.eveningoutpost.dexdrip.utilitymodels.CollectionServiceStarter;
+import com.eveningoutpost.dexdrip.utilitymodels.Constants;
+import com.eveningoutpost.dexdrip.utilitymodels.LibreUtils;
+import com.eveningoutpost.dexdrip.utilitymodels.PersistentStore;
+import com.eveningoutpost.dexdrip.utilitymodels.Pref;
 import com.eveningoutpost.dexdrip.utils.DexCollectionType;
 
-import com.eveningoutpost.dexdrip.Models.LibreOOPAlgorithm.SensorType;
+import com.eveningoutpost.dexdrip.models.LibreOOPAlgorithm.SensorType;
 import com.eveningoutpost.dexdrip.utils.LibreTrendUtil;
 
 
@@ -611,7 +611,7 @@ public class NFCReaderX {
                                     try {
                                         replyBlock = nfcvTag.transceive(diag);
                                         break;
-                                    } catch (IOException e) {
+                                    } catch (IOException | SecurityException e) {
                                         if ((System.currentTimeMillis() > time + 2000)) {
                                             Log.e(TAG, "tag diagnostic read timeout");
                                             JoH.static_toast_short(gs(R.string.nfc_diag_timeout));
@@ -644,7 +644,7 @@ public class NFCReaderX {
                                     patchInfo = Arrays.copyOfRange(patchInfo, 1, patchInfo.length);
                                 }
                                 break;
-                            } catch (IOException e) {
+                            } catch (IOException | SecurityException e) {
                                 if ((System.currentTimeMillis() > time_patch + 2000)) {
                                     Log.e(TAG, "patchInfo tag read timeout");
                                     JoH.static_toast_short(gs(R.string.nfc_read_timeout));
@@ -668,9 +668,13 @@ public class NFCReaderX {
                             Log.d(TAG, "Not using addressed mode since not a libre 1 sensor");
                             addressed = false;
                         }
-                        if (sensorType == SensorType.Libre2) {
+                        if (sensorType == SensorType.Libre2 || sensorType == SensorType.Libre2Plus) {
                             startLibre2Streaming(nfcvTag, patchUid, patchInfo);
+                        }
+                        if (sensorType == SensorType.Libre2) {
                             PersistentStore.setString("LibreVersion", "2");
+                        } else if (sensorType == SensorType.Libre2Plus) {
+                            PersistentStore.setString("LibreVersion", "3");
                         } else {
                             PersistentStore.setString("LibreVersion", "1");
                         }
@@ -680,7 +684,7 @@ public class NFCReaderX {
                             for (int i = 0; i < 43; i = i + 3) {
                                 int read_blocks = 3;
                                 int correct_reply_size = addressed ? 28 : 25;
-                                if (i == 42 && sensorType == SensorType.Libre2) {
+                                if (i == 42 && (sensorType == SensorType.Libre2 || sensorType == SensorType.Libre2Plus)) {
                                     read_blocks = 1;
                                     correct_reply_size = 9;
                                 }
@@ -699,7 +703,7 @@ public class NFCReaderX {
                                     try {
                                         replyBlock = nfcvTag.transceive(cmd);
                                         break;
-                                    } catch (IOException e) {
+                                    } catch (IOException | SecurityException e) {
                                         if ((System.currentTimeMillis() > time + 2000)) {
                                             Log.e(TAG, "tag read timeout");
                                             JoH.static_toast_short(gs(R.string.nfc_read_timeout));
@@ -760,7 +764,7 @@ public class NFCReaderX {
                                         Log.e(TAG, "sending command " + HexDump.toHexString(cmd));
                                         oneBlock = nfcvTag.transceive(cmd);
                                         break;
-                                    } catch (IOException e) {
+                                    } catch (IOException | SecurityException e) {
                                         if ((System.currentTimeMillis() > time + 2000)) {
                                             Log.e(TAG, "tag read timeout");
                                             JoH.static_toast_short(gs(R.string.nfc_read_timeout));
@@ -790,7 +794,7 @@ public class NFCReaderX {
                         JoH.static_toast_short(gs(R.string.scanned_ok));
                         PersistentStore.setLongZeroIfSet("nfc-address-failures");
 
-                    } catch (IOException e) {
+                    } catch (IOException | SecurityException e) {
                         JoH.static_toast_short(gs(R.string.nfc_io_error));
                         vibrate(context, 3);
                     } catch (Exception e) {

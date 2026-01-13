@@ -8,14 +8,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Paint;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
@@ -25,10 +22,10 @@ import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 
-import com.eveningoutpost.dexdrip.Models.AlertType;
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.UserError.Log;
-import com.eveningoutpost.dexdrip.UtilityModels.AlertPlayer;
+import com.eveningoutpost.dexdrip.models.AlertType;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.UserError.Log;
+import com.eveningoutpost.dexdrip.utilitymodels.AlertPlayer;
 import com.eveningoutpost.dexdrip.utils.ActivityWithMenu;
 
 import java.text.ParseException;
@@ -55,7 +52,7 @@ public class AlertList extends ActivityWithMenu {
 
     String stringTimeFromAlert(AlertType alert) {
         if (alert.all_day) {
-            return "all day";
+            return getString(R.string.all_day);
         }
         String start = timeFormatString(AlertType.time2Hours(alert.start_time_minutes), AlertType.time2Minutes(alert.start_time_minutes));
         String end = timeFormatString(AlertType.time2Hours(alert.end_time_minutes), AlertType.time2Minutes(alert.end_time_minutes));
@@ -64,9 +61,9 @@ public class AlertList extends ActivityWithMenu {
 
     HashMap<String, String> createAlertMap(AlertType alert) {
         HashMap<String, String> map = new HashMap<String, String>();
-        String overrideSilentMode = "Override Silent Mode";
-        if (alert.override_silent_mode == false) {
-            overrideSilentMode = "No Alert in Silent Mode";
+        String overrideSilentMode = getString(R.string.override_silent_mode);
+        if (!alert.override_silent_mode) {
+            overrideSilentMode = getString(R.string.no_alert_in_silent_mode);
         }
         // We use a - sign to tell that this text should be stiked through
         String extra = "-";
@@ -193,11 +190,11 @@ public class AlertList extends ActivityWithMenu {
 
                 if (!isFinishing()) {
                     new AlertDialog.Builder(AlertList.this)
-                            .setTitle("Warning !")
-                            .setMessage("No active Low Alert exists, without this there will be no alert on low glucose! Please add or enable a low alert.")
+                            .setTitle(getString(R.string.alert_warning))
+                            .setMessage(getString(R.string.no_active_low_alert_warning))
                             .setCancelable(false)
                             .setPositiveButton(
-                                    "Ok",
+                                    getString(R.string.ok),
                                     new DialogInterface.OnClickListener() {
                                         public void onClick(DialogInterface dialog, int id) {
                                             dialog.cancel();

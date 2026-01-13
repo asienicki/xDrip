@@ -9,19 +9,18 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 
-import com.eveningoutpost.dexdrip.Models.SensorSanity;
-import com.eveningoutpost.dexdrip.Models.UserError.Log;
-import com.eveningoutpost.dexdrip.ImportedLibraries.usbserial.util.HexDump;
-import com.eveningoutpost.dexdrip.Models.BgReading;
-import com.eveningoutpost.dexdrip.Models.Forecast;
-import com.eveningoutpost.dexdrip.Models.GlucoseData;
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.LibreBlock;
-import com.eveningoutpost.dexdrip.Models.LibreOOPAlgorithm;
-import com.eveningoutpost.dexdrip.Models.ReadingData;
-import com.eveningoutpost.dexdrip.UtilityModels.Constants;
-import com.eveningoutpost.dexdrip.UtilityModels.Intents;
-import com.eveningoutpost.dexdrip.UtilityModels.Pref;
+import com.eveningoutpost.dexdrip.models.SensorSanity;
+import com.eveningoutpost.dexdrip.models.UserError.Log;
+import com.eveningoutpost.dexdrip.importedlibraries.usbserial.util.HexDump;
+import com.eveningoutpost.dexdrip.models.BgReading;
+import com.eveningoutpost.dexdrip.models.Forecast;
+import com.eveningoutpost.dexdrip.models.GlucoseData;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.LibreBlock;
+import com.eveningoutpost.dexdrip.models.ReadingData;
+import com.eveningoutpost.dexdrip.utilitymodels.Constants;
+import com.eveningoutpost.dexdrip.utilitymodels.Intents;
+import com.eveningoutpost.dexdrip.utilitymodels.Pref;
 import com.eveningoutpost.dexdrip.utils.CheckBridgeBattery;
 import com.eveningoutpost.dexdrip.utils.DexCollectionType;
 import com.eveningoutpost.dexdrip.utils.LibreTrendUtil;
@@ -36,8 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.eveningoutpost.dexdrip.Models.JoH.tsl;
-import static com.eveningoutpost.dexdrip.UtilityModels.Constants.LIBRE_MULTIPLIER;
+import static com.eveningoutpost.dexdrip.utilitymodels.Constants.LIBRE_MULTIPLIER;
 import static com.eveningoutpost.dexdrip.xdrip.gs;
 
 import lombok.val;
@@ -59,6 +57,7 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
     private static final Object lock = new Object();
     private static long sensorAge = 0;
     private static long timeShiftNearest = -1;
+    public static final String LIBRE_SOURCE_INFO = "Libre2";
 
     public static void clearSensorStats() {
         Pref.setInt("nfc_sensor_age", 0); // reset for nfc sensors
@@ -75,11 +74,13 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
 
     private static void createBGfromGD(GlucoseData gd, boolean use_smoothed_data, boolean quick) {
         final double converted;
+        String sourceInfo = null;
         if (useGlucoseAsRaw()) {
             // if treating converted value as raw
             if (gd.glucoseLevel > 0) {
                 if (use_smoothed_data && gd.glucoseLevelSmoothed > 0) {
                     converted  = gd.glucoseLevelSmoothed * 1000;
+                    sourceInfo = LIBRE_SOURCE_INFO;
                     Log.e(TAG, "Using smoothed value as raw " + converted + " instead of " + gd.glucoseLevel);
                 } else {
                     converted = gd.glucoseLevel * 1000;
@@ -91,6 +92,7 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
             if (gd.glucoseLevelRaw > 0) {
                 if (use_smoothed_data && gd.glucoseLevelRawSmoothed > 0) {
                     converted = convert_for_dex(gd.glucoseLevelRawSmoothed);
+                    sourceInfo = LIBRE_SOURCE_INFO;
                     Log.d(TAG, "Using smoothed value " + converted + " instead of " + convert_for_dex(gd.glucoseLevelRaw) + gd);
                 } else {
                     converted = convert_for_dex(gd.glucoseLevelRaw);
@@ -108,7 +110,7 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
 
                 if (BgReading.getForPreciseTimestamp(gd.realDate, DexCollectionType.getCurrentDeduplicationPeriod(), false) == null) {
                     Log.d(TAG, "Creating bgreading at: " + JoH.dateTimeText(gd.realDate));
-                    BgReading.create(converted, converted, xdrip.getAppContext(), gd.realDate, quick); // quick lite insert
+                    BgReading.create(converted, converted, xdrip.getAppContext(), gd.realDate, quick, sourceInfo); // quick lite insert
                 } else {
                     if (d)
                         Log.d(TAG, "Ignoring duplicate timestamp for: " + JoH.dateTimeText(gd.realDate));
@@ -275,7 +277,7 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
                     if (use_raw) {
                         createBGfromGD(gd, use_smoothed_data, false); // not quick for recent
                     } else {
-                        BgReading.bgReadingInsertFromInt(use_smoothed_data ? gd.glucoseLevelSmoothed : gd.glucoseLevel, gd.realDate, segmentation_timeslice, true);
+                        BgReading.bgReadingInsertFromInt(use_smoothed_data ? gd.glucoseLevelSmoothed : gd.glucoseLevel, gd.realDate, segmentation_timeslice, true, LIBRE_SOURCE_INFO);
                     }
                 }
             } else {
@@ -308,7 +310,9 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
                 } else {
                     polyyList.add((double) gd.glucoseLevel);
                     // add in the actual value
-                    BgReading.bgReadingInsertFromInt(gd.glucoseLevel, gd.realDate, timeslice, false);
+                    if (gd.glucoseLevel > 0) {
+                        BgReading.bgReadingInsertFromInt(gd.glucoseLevel, gd.realDate, timeslice, false, LIBRE_SOURCE_INFO);
+                    }
                 }
             }
 
@@ -334,7 +338,7 @@ public class LibreAlarmReceiver extends BroadcastReceiver {
                             // Here we do not use smoothed data, since data is already smoothed for the history
                             createBGfromGD(new GlucoseData((int) polySplineF.value(ptime), ptime), false, true);
                         } else {
-                            BgReading.bgReadingInsertFromInt((int) polySplineF.value(ptime), ptime, timeslice, false);
+                            BgReading.bgReadingInsertFromInt((int) polySplineF.value(ptime), ptime, timeslice, false, LIBRE_SOURCE_INFO);
                         }
                     }
                 } catch (org.apache.commons.math3.exception.NonMonotonicSequenceException e) {

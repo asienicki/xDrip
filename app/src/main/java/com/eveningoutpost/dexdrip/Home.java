@@ -1,15 +1,20 @@
 package com.eveningoutpost.dexdrip;
 
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
-import static com.eveningoutpost.dexdrip.Models.JoH.msSince;
-import static com.eveningoutpost.dexdrip.Models.JoH.quietratelimit;
-import static com.eveningoutpost.dexdrip.Models.JoH.tsl;
-import static com.eveningoutpost.dexdrip.UtilityModels.ColorCache.X;
-import static com.eveningoutpost.dexdrip.UtilityModels.ColorCache.getCol;
-import static com.eveningoutpost.dexdrip.UtilityModels.Constants.DAY_IN_MS;
-import static com.eveningoutpost.dexdrip.UtilityModels.Constants.HOUR_IN_MS;
-import static com.eveningoutpost.dexdrip.UtilityModels.Constants.MINUTE_IN_MS;
-import static com.eveningoutpost.dexdrip.UtilityModels.Constants.SECOND_IN_MS;
+import static com.eveningoutpost.dexdrip.g5model.Ob1G5StateMachine.shortTxId;
+import static com.eveningoutpost.dexdrip.models.JoH.msSince;
+import static com.eveningoutpost.dexdrip.models.JoH.quietratelimit;
+import static com.eveningoutpost.dexdrip.models.JoH.tsl;
+import static com.eveningoutpost.dexdrip.services.Ob1G5CollectionService.getTransmitterID;
+import static com.eveningoutpost.dexdrip.utilitymodels.ColorCache.X;
+import static com.eveningoutpost.dexdrip.utilitymodels.ColorCache.getCol;
+import static com.eveningoutpost.dexdrip.utilitymodels.Constants.DAY_IN_MS;
+import static com.eveningoutpost.dexdrip.utilitymodels.Constants.HOUR_IN_MS;
+import static com.eveningoutpost.dexdrip.utilitymodels.Constants.MINUTE_IN_MS;
+import static com.eveningoutpost.dexdrip.utilitymodels.Constants.SECOND_IN_MS;
+import static com.eveningoutpost.dexdrip.utils.DexCollectionType.GluPro;
+import static com.eveningoutpost.dexdrip.utils.DexCollectionType.LibreAlarm;
+import static com.eveningoutpost.dexdrip.utils.DexCollectionType.Medtrum;
 import static com.eveningoutpost.dexdrip.xdrip.gs;
 
 import android.Manifest;
@@ -29,7 +34,6 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -39,14 +43,15 @@ import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.speech.RecognizerIntent;
-import android.support.annotation.NonNull;
-import android.support.annotation.RequiresApi;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.text.InputType;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -68,51 +73,54 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.eveningoutpost.dexdrip.G5Model.Ob1G5StateMachine;
-import com.eveningoutpost.dexdrip.G5Model.SensorDays;
-import com.eveningoutpost.dexdrip.ImportedLibraries.usbserial.util.HexDump;
-import com.eveningoutpost.dexdrip.Models.ActiveBgAlert;
-import com.eveningoutpost.dexdrip.Models.ActiveBluetoothDevice;
-import com.eveningoutpost.dexdrip.Models.BgReading;
-import com.eveningoutpost.dexdrip.Models.BloodTest;
-import com.eveningoutpost.dexdrip.Models.Calibration;
-import com.eveningoutpost.dexdrip.Models.HeartRate;
-import com.eveningoutpost.dexdrip.Models.InsulinInjection;
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.LibreBlock;
-import com.eveningoutpost.dexdrip.Models.ProcessInitialDataQuality;
-import com.eveningoutpost.dexdrip.Models.Sensor;
-import com.eveningoutpost.dexdrip.Models.StepCounter;
-import com.eveningoutpost.dexdrip.Models.Treatments;
-import com.eveningoutpost.dexdrip.Models.UserError;
-import com.eveningoutpost.dexdrip.Services.ActivityRecognizedService;
-import com.eveningoutpost.dexdrip.Services.DexCollectionService;
-import com.eveningoutpost.dexdrip.Services.Ob1G5CollectionService;
-import com.eveningoutpost.dexdrip.Services.PlusSyncService;
-import com.eveningoutpost.dexdrip.Services.WixelReader;
-import com.eveningoutpost.dexdrip.UtilityModels.AlertPlayer;
-import com.eveningoutpost.dexdrip.UtilityModels.BgGraphBuilder;
-import com.eveningoutpost.dexdrip.UtilityModels.CollectionServiceStarter;
-import com.eveningoutpost.dexdrip.UtilityModels.ColorCache;
-import com.eveningoutpost.dexdrip.UtilityModels.CompatibleApps;
-import com.eveningoutpost.dexdrip.UtilityModels.Constants;
-import com.eveningoutpost.dexdrip.UtilityModels.Experience;
-import com.eveningoutpost.dexdrip.UtilityModels.Inevitable;
-import com.eveningoutpost.dexdrip.UtilityModels.Intents;
-import com.eveningoutpost.dexdrip.UtilityModels.JamorhamShowcaseDrawer;
-import com.eveningoutpost.dexdrip.UtilityModels.NanoStatus;
-import com.eveningoutpost.dexdrip.UtilityModels.NightscoutUploader;
-import com.eveningoutpost.dexdrip.UtilityModels.Notifications;
-import com.eveningoutpost.dexdrip.UtilityModels.PersistentStore;
-import com.eveningoutpost.dexdrip.UtilityModels.Pref;
-import com.eveningoutpost.dexdrip.UtilityModels.PrefsViewImpl;
-import com.eveningoutpost.dexdrip.UtilityModels.SendFeedBack;
-import com.eveningoutpost.dexdrip.UtilityModels.ShotStateStore;
-import com.eveningoutpost.dexdrip.UtilityModels.SourceWizard;
-import com.eveningoutpost.dexdrip.UtilityModels.StatusLine;
-import com.eveningoutpost.dexdrip.UtilityModels.UndoRedo;
-import com.eveningoutpost.dexdrip.UtilityModels.UpdateActivity;
-import com.eveningoutpost.dexdrip.UtilityModels.VoiceCommands;
+import com.eveningoutpost.dexdrip.g5model.DexSyncKeeper;
+import com.eveningoutpost.dexdrip.g5model.DexTimeKeeper;
+import com.eveningoutpost.dexdrip.g5model.Ob1G5StateMachine;
+import com.eveningoutpost.dexdrip.g5model.SensorDays;
+import com.eveningoutpost.dexdrip.importedlibraries.usbserial.util.HexDump;
+import com.eveningoutpost.dexdrip.models.ActiveBgAlert;
+import com.eveningoutpost.dexdrip.models.ActiveBluetoothDevice;
+import com.eveningoutpost.dexdrip.models.BgReading;
+import com.eveningoutpost.dexdrip.models.BloodTest;
+import com.eveningoutpost.dexdrip.models.Calibration;
+import com.eveningoutpost.dexdrip.models.HeartRate;
+import com.eveningoutpost.dexdrip.models.InsulinInjection;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.LibreBlock;
+import com.eveningoutpost.dexdrip.models.ProcessInitialDataQuality;
+import com.eveningoutpost.dexdrip.models.Sensor;
+import com.eveningoutpost.dexdrip.models.StepCounter;
+import com.eveningoutpost.dexdrip.models.Treatments;
+import com.eveningoutpost.dexdrip.models.UserError;
+import com.eveningoutpost.dexdrip.services.ActivityRecognizedService;
+import com.eveningoutpost.dexdrip.services.DexCollectionService;
+import com.eveningoutpost.dexdrip.services.Ob1G5CollectionService;
+import com.eveningoutpost.dexdrip.services.PlusSyncService;
+import com.eveningoutpost.dexdrip.services.WixelReader;
+import com.eveningoutpost.dexdrip.utilitymodels.AlertPlayer;
+import com.eveningoutpost.dexdrip.utilitymodels.BgGraphBuilder;
+import com.eveningoutpost.dexdrip.utilitymodels.CollectionServiceStarter;
+import com.eveningoutpost.dexdrip.utilitymodels.ColorCache;
+import com.eveningoutpost.dexdrip.utilitymodels.CompatibleApps;
+import com.eveningoutpost.dexdrip.utilitymodels.Constants;
+import com.eveningoutpost.dexdrip.utilitymodels.Experience;
+import com.eveningoutpost.dexdrip.utilitymodels.Inevitable;
+import com.eveningoutpost.dexdrip.utilitymodels.Intents;
+import com.eveningoutpost.dexdrip.utilitymodels.JamorhamShowcaseDrawer;
+import com.eveningoutpost.dexdrip.utilitymodels.MockDataSource;
+import com.eveningoutpost.dexdrip.utilitymodels.NanoStatus;
+import com.eveningoutpost.dexdrip.utilitymodels.NightscoutUploader;
+import com.eveningoutpost.dexdrip.utilitymodels.Notifications;
+import com.eveningoutpost.dexdrip.utilitymodels.PersistentStore;
+import com.eveningoutpost.dexdrip.utilitymodels.Pref;
+import com.eveningoutpost.dexdrip.utilitymodels.PrefsViewImpl;
+import com.eveningoutpost.dexdrip.utilitymodels.SendFeedBack;
+import com.eveningoutpost.dexdrip.utilitymodels.ShotStateStore;
+import com.eveningoutpost.dexdrip.utilitymodels.SourceWizard;
+import com.eveningoutpost.dexdrip.utilitymodels.StatusLine;
+import com.eveningoutpost.dexdrip.utilitymodels.UndoRedo;
+import com.eveningoutpost.dexdrip.utilitymodels.UpdateActivity;
+import com.eveningoutpost.dexdrip.utilitymodels.VoiceCommands;
 import com.eveningoutpost.dexdrip.calibrations.NativeCalibrationPipe;
 import com.eveningoutpost.dexdrip.calibrations.PluggableCalibration;
 import com.eveningoutpost.dexdrip.cloud.backup.BackupActivity;
@@ -154,9 +162,11 @@ import com.eveningoutpost.dexdrip.wearintegration.WatchUpdaterService;
 import com.github.amlcurran.showcaseview.ShowcaseView;
 import com.github.amlcurran.showcaseview.targets.Target;
 import com.github.amlcurran.showcaseview.targets.ViewTarget;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.bind.DateTypeAdapter;
+import static com.eveningoutpost.dexdrip.utils.DexCollectionType.DexcomG5;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -372,7 +382,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         }
 
         nanoStatus = new NanoStatus("collector", 1000);
-        expiryStatus = new NanoStatus("sensor-expiry", 15000);
+        expiryStatus = new NanoStatus("s-expiry", 15000);
 
         set_is_follower();
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
@@ -639,7 +649,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
                 Log.d(TAG, "Requesting ignore battery optimization");
 
                 if (((dialog == null) || (!dialog.isShowing()))
-                        && (PersistentStore.incrementLong("asked_battery_optimization") < 40)) {
+                        && (PersistentStore.incrementLong("asked_battery_optimization") < 40000)) {
                     JoH.show_ok_dialog(this, gs(R.string.please_allow_permission), gs(R.string.xdrip_needs_whitelisting_for_proper_performance), new Runnable() {
 
                         @RequiresApi(api = Build.VERSION_CODES.M)
@@ -1000,6 +1010,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
                 }
                 final PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
                 JoH.showNotification(bundle.getString(SHOW_NOTIFICATION), bundle.getString("notification_body"), pendingIntent, notification_id, true, true, true);
+                UserError.Log.uel(TAG, bundle.getString("notification_body"));
             } else if (bundle.getString(Home.BLUETOOTH_METER_CALIBRATION) != null) {
                 try {
                     processFingerStickCalibration(JoH.tolerantParseDouble(bundle.getString(Home.BLUETOOTH_METER_CALIBRATION), 0d),
@@ -1118,12 +1129,17 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         context.startActivity(intent);
     }
 
+    private boolean isAutoYPanEnabled() {
+        // When true, xDrip auto-pans the Y-axis instead of extending the range for out-of-range readings.
+        return Pref.getBooleanDefaultFalse("auto_y_pan");
+    }
+
     public void cloudBackup(MenuItem x) {
         JoH.startActivity(BackupActivity.class);
     }
 
     public void crowdTranslate(MenuItem x) {
-       // startActivity(new Intent(this, LanguageEditor.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        // startActivity(new Intent(this, LanguageEditor.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://crowdin.com/project/xdrip")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     }
 
@@ -1822,7 +1838,9 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         reset_viewport = true;
         if (activityVisible || override) {
             Intent updateIntent = new Intent(Intents.ACTION_NEW_BG_ESTIMATE_NO_DATA);
-            mActivity.sendBroadcast(updateIntent);
+            if (mActivity != null) {
+                mActivity.sendBroadcast(updateIntent);
+            }
         }
     }
 
@@ -1904,7 +1922,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         NFControl.initNFC(this, false);
 
         if (get_follower() || get_master()) {
-            GcmActivity.checkSync(this);
+           // GcmActivity.checkSync(this);
         }
 
         checkWifiSleepPolicy();
@@ -2094,8 +2112,14 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
             float tempwidth = (float) moveViewPort.width() / 4;
             holdViewport.left = moveViewPort.right - tempwidth;
             holdViewport.right = moveViewPort.right + (moveViewPort.width() / 24);
-            holdViewport.top = moveViewPort.top;
-            holdViewport.bottom = moveViewPort.bottom;
+            if (!isAutoYPanEnabled()) {
+                holdViewport.top = moveViewPort.top;
+                holdViewport.bottom = moveViewPort.bottom;
+            } else {
+                Viewport v = bgGraphBuilder.computeYViewport();
+                holdViewport.top = v.top;
+                holdViewport.bottom = v.bottom;
+            }
             chart.setCurrentViewport(holdViewport);
             previewChart.setCurrentViewport(holdViewport);
             UserError.Log.e(TAG, "SMALL HEIGHT VIEWPORT WARNING");
@@ -2172,7 +2196,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         if (!has_libreblock_set) setHasLibreblock();
         return has_libreblock;
     }
-    
+
     public static boolean get_is_libre_whole_house_collector() {
         return Pref.getBooleanDefaultFalse("libre_whole_house_collector");
     }
@@ -2244,7 +2268,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
     }
 
     public void sourceWizardButtonClick(View v) {
-        SourceWizard.start(this, true);
+        SourceWizard.start(Home.this, true);
     }
 
     private long whichTimeLocked() {
@@ -2280,16 +2304,22 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
             case "time tick":
                 if (msSince(lastViewPortPan) < 45 * SECOND_IN_MS) {
                     UserError.Log.d(TAG, "Skipping VIEWPORT adjustment as panning and data just arrived: " + holdViewport.toString());
-                    holdViewport.top = maxViewPort.top;
-                    holdViewport.bottom = maxViewPort.bottom;
+                    if (!isAutoYPanEnabled()) {
+                        holdViewport.top = maxViewPort.top;
+                        holdViewport.bottom = maxViewPort.bottom;
+                    }
                     chart.setCurrentViewport(holdViewport); // reuse existing
                     return;
                 }
                 break;
         }
 
-        float ideal_hours_to_show = DEFAULT_CHART_HOURS + bgGraphBuilder.getPredictivehours();
-        // always show at least the ideal number of hours if locked or auto
+        // always show at least the ideal number of hours
+        float ideal_hours_to_show = DEFAULT_CHART_HOURS;
+        // ... and rescale to accommodate predictions if not locked
+        if (! homeShelf.get("time_locked_always")) {
+            ideal_hours_to_show += bgGraphBuilder.getPredictivehours();
+        }
         float hours_to_show =  exactHoursSpecified ? hours : Math.max(hours, ideal_hours_to_show);
 
         UserError.Log.d(TAG, "VIEWPORT " + source + " moveviewport in setHours: asked " + hours + " vs auto " + ideal_hours_to_show + " = " + hours_to_show + " full chart width: " + bgGraphBuilder.hoursShownOnChart());
@@ -2297,14 +2327,27 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         double hour_width = maxViewPort.width() / bgGraphBuilder.hoursShownOnChart();
         holdViewport.left = maxViewPort.right - hour_width * hours_to_show;
         holdViewport.right = maxViewPort.right;
-        holdViewport.top = maxViewPort.top;
-        holdViewport.bottom = maxViewPort.bottom;
+        if (!isAutoYPanEnabled()) {
+            holdViewport.top = maxViewPort.top;
+            holdViewport.bottom = maxViewPort.bottom;
+        }
 
-    if (d) {
-        UserError.Log.d(TAG, "HOLD VIEWPORT " + holdViewport);
-        UserError.Log.d(TAG, "MAX VIEWPORT " + maxViewPort);
-    }
+        // if locked, center display on current bg values, not predictions
+        if (homeShelf.get("time_locked_always")) {
+            holdViewport.left -= hour_width * bgGraphBuilder.getPredictivehours();
+            holdViewport.right -= hour_width * bgGraphBuilder.getPredictivehours();
+        }
 
+        if (d) {
+            UserError.Log.d(TAG, "HOLD VIEWPORT " + holdViewport);
+            UserError.Log.d(TAG, "MAX VIEWPORT " + maxViewPort);
+        }
+
+        if (isAutoYPanEnabled()) {
+            Viewport v = bgGraphBuilder.computeYViewport();
+            holdViewport.top = v.top;
+            holdViewport.bottom = v.bottom;
+        }
         chart.setCurrentViewport(holdViewport);
 
     }
@@ -2384,8 +2427,8 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         }
         if (reset_viewport) {
             reset_viewport = false;
-          //  holdViewport.set(0, 0, 0, 0);
-           // if (chart != null) chart.setZoomType(ZoomType.HORIZONTAL);
+            //  holdViewport.set(0, 0, 0, 0);
+            // if (chart != null) chart.setZoomType(ZoomType.HORIZONTAL);
             // TODO above reset viewport thing seems defunct now
         }
         setupCharts(source);
@@ -2442,11 +2485,12 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         } else if (is_follower || collector.isPassive()) {
             displayCurrentInfo();
             Inevitable.task("home-notifications-start", 5000, Notifications::start);
-        } else if (!alreadyDisplayedBgInfoCommon && (DexCollectionType.getDexCollectionType() == DexCollectionType.LibreAlarm || collector == DexCollectionType.Medtrum)) {
+            // TODO add dexcollectiontype set handling for these
+        } else if (!alreadyDisplayedBgInfoCommon && (collector == LibreAlarm || collector == Medtrum || collector == GluPro)) {
             updateCurrentBgInfoCommon(collector, notificationText);
         }
         if (collector.equals(DexCollectionType.Disabled)) {
-            notificationText.append("\n DATA SOURCE DISABLED");
+            notificationText.append(getString(R.string.__data_source_disabled));
             if (!Experience.gotData()) {
                 // TODO should this move to Experience::processSteps ?
                 final Activity activity = this;
@@ -2461,6 +2505,12 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
             }
         } else if (collector.equals(DexCollectionType.Mock)) {
             notificationText.append("\n USING FAKE DATA SOURCE !!!");
+            if (MockDataSource.divisor_scale == 1500000) {
+                notificationText.append(" F");
+            }
+            if (MockDataSource.amplify_cnst == 330000) {
+                notificationText.append(" Amp");
+            }
         }
         if (Pref.getLong("alerts_disabled_until", 0) > new Date().getTime()) {
             notificationText.append("\n " + getString(R.string.all_alerts_currently_disabled));
@@ -2515,7 +2565,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
             if (predicted_low_in_mins > 1) {
                 lowPredictText.append(getString(R.string.low_predicted) + "\n" + getString(R.string.in) + ": " + (int) predicted_low_in_mins + getString(R.string.space_mins));
                 if (predicted_low_in_mins < low_predicted_alarm_minutes) {
-                    lowPredictText.setTextColor(Color.RED); // low front getting too close!
+                    lowPredictText.setTextColor(getCol(X.color_low_predicted_critical_note)); // low front getting too close!
                 } else {
                     final double previous_predicted_low_in_mins = (BgGraphBuilder.previous_low_occurs_at - now) / 60000;
                     if ((BgGraphBuilder.previous_low_occurs_at > 0) && ((previous_predicted_low_in_mins + 5) < predicted_low_in_mins)) {
@@ -2606,7 +2656,13 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         }
 
         if (!isSensorActive) {
-            notificationText.setText(R.string.now_start_your_sensor);
+            // Define a variable (notConnectedToG6Yet) that is only true if Native G6 is chosen, but, transmitter days is unknown or not synced yet.
+            boolean notConnectedToG6Yet = DexCollectionType.getDexCollectionType() == DexcomG5 && Pref.getBooleanDefaultFalse("ob1_g5_use_transmitter_alg") && Pref.getBooleanDefaultFalse("using_g6") && (DexTimeKeeper.getTransmitterAgeInDays(getTransmitterID()) == -1 || !DexSyncKeeper.isReady(getTransmitterID()));
+            if (notConnectedToG6Yet || shortTxId()) { // Only if G6 has been selected and transmitter is not synced yet, or if G7 has been selected.
+                notificationText.setText(R.string.wait_to_connect);
+            } else { // Only if G6 is not selected or G6 transmitter is synced.
+                notificationText.setText(R.string.now_start_your_sensor);
+            }
 
             if ((dialog == null) || (!dialog.isShowing())) {
                 if (!Experience.gotData() && Experience.backupAvailable() && JoH.ratelimit("restore-backup-prompt", 10)) {
@@ -2622,11 +2678,12 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
                     dialog = builder.create();
                     dialog.show();
                 } else {
-                    if (!Experience.gotData() && !QuickSettingsDialogs.isDialogShowing() && JoH.ratelimit("start-sensor_prompt", 20)) {
+                    if (!Experience.gotData() && !QuickSettingsDialogs.isDialogShowing() && !notConnectedToG6Yet && JoH.ratelimit("start-sensor_prompt", 20)) {
+                        // Show the start sensor prompt only if G6 is not selected or the G6 transmitter is synchronized.
                         final AlertDialog.Builder builder = new AlertDialog.Builder(this);
                         final Context context = this;
                         builder.setTitle(getString(R.string.start_sensor) + "?");
-                        builder.setMessage(String.format(gs(R.string.start_sensor_confirmation), DexCollectionType.getDexCollectionType().toString()));
+                        builder.setMessage(String.format(gs(R.string.start_sensor_confirmation), DexCollectionType.getBestCollectorHardwareName()));
                         builder.setNegativeButton(gs(R.string.change_settings), (dialog, which) -> {
                             dialog.dismiss();
                             startActivity(new Intent(context, Preferences.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -2644,9 +2701,11 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         }
 
         if (!BgReading.doWeHaveRecentUsableData()) {
+            // TODO check null handling?
             long startedAt = Sensor.currentSensor().started_at;
             long computedStartedAt = SensorDays.get().getStart();
-            if (computedStartedAt > 0 && msSince(computedStartedAt) < HOUR_IN_MS * 3) {
+            if (computedStartedAt > 0) {
+                UserError.Log.d(TAG, "computedStartedAt " + JoH.dateTimeText(computedStartedAt));
                 startedAt = Math.min(computedStartedAt, startedAt);
             }
             final long warmUpMs = SensorDays.get().getWarmupMs();
@@ -2669,10 +2728,16 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
             return;
         }
 
+        // we can't use the Dex related code below so we handle things here
+        if (DexCollectionType.getDexCollectionType() == GluPro) {
+            displayCurrentInfo();
+            return;
+        }
+
         // TODO this logic needed a rework even a year ago, now its a lot more confused with the additional complexity of native mode
         if (Ob1G5CollectionService.isG5ActiveButUnknownState() && Calibration.latestValid(2).size() < 2) {
             // TODO use format string
-            notificationText.setText(String.format(gs(R.string.state_not_currently_known), (Ob1G5StateMachine.usingG6() ? "G6" : "G5")));
+            notificationText.setText(String.format(gs(R.string.state_not_currently_known), (Ob1G5StateMachine.usingG6() ? (shortTxId() ? "G7" : "G6") : "G5")));
             showUncalibratedSlope();
         } else {
 
@@ -2976,7 +3041,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
 
     // TODO consider moving this out of Home
     public static long stale_data_millis() {
-        if (DexCollectionType.getDexCollectionType() == DexCollectionType.LibreAlarm)
+        if (DexCollectionType.getDexCollectionType() == LibreAlarm)
             return (60000 * 13);
         return (60000 * 11);
     }
@@ -3487,7 +3552,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
 
             if (treatment_text.length() > 0) {
                 // display snackbar of the snackbar
-                final View.OnClickListener mOnClickListener = v -> Home.startHomeWithExtra(xdrip.getAppContext(), Home.CREATE_TREATMENT_NOTE, Long.toString(timestamp), Double.toString(position));
+                final View.OnClickListener mOnClickListener = v -> Home.startHomeWithExtra(xdrip.getAppContext(), Home.CREATE_TREATMENT_NOTE, Long.toString(timestamp), "-1"); // Let's not enter a y position to avoid having to worry about BG units
                 Home.snackBar(R.string.add_note, getString(R.string.added) + ":    " + treatment_text, mOnClickListener, mActivity);
             }
 
@@ -3542,7 +3607,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
         if (JoH.ratelimit("manual-update-check", 5)) {
             toast(getString(R.string.checking_for_update));
             UpdateActivity.last_check_time = -1;
-            UpdateActivity.checkForAnUpdate(getApplicationContext());
+            UpdateActivity.checkForAnUpdate(getApplicationContext(), true);
         }
     }
 
@@ -3610,7 +3675,7 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
 
     public static double convertToMgDlIfMmol(double value) {
         if (!Pref.getString("units", "mgdl").equals("mgdl")) {
-            return value * com.eveningoutpost.dexdrip.UtilityModels.Constants.MMOLL_TO_MGDL;
+            return value * com.eveningoutpost.dexdrip.utilitymodels.Constants.MMOLL_TO_MGDL;
         } else {
             return value; // no conversion needed
         }
@@ -3618,13 +3683,21 @@ public class Home extends ActivityWithMenu implements ActivityCompat.OnRequestPe
 
     public static void snackBar(int buttonString, String message, View.OnClickListener mOnClickListener, Activity activity) {
 
-        android.support.design.widget.Snackbar.make(
+        // Store Snackbar in a variable
+        Snackbar snackbar = Snackbar.make(
+                        activity.findViewById(android.R.id.content),
+                        message, Snackbar.LENGTH_LONG)
+                .setAction(buttonString, mOnClickListener);
 
-                activity.findViewById(android.R.id.content),
-                message, Snackbar.LENGTH_LONG)
-                .setAction(buttonString, mOnClickListener)
-                //.setActionTextColor(Color.RED)
-                .show();
+        // Disable ALL CAPS on the action button
+        Button b = snackbar.getView().findViewById(com.google.android.material.R.id.snackbar_action);
+        if (b != null) b.setAllCaps(false);
+
+        // Maximum number of lines to wrap into
+        TextView t = snackbar.getView().findViewById(com.google.android.material.R.id.snackbar_text);
+        if (t != null) t.setMaxLines(5);
+
+        snackbar.show();
     }
 
     public static void staticBlockUI(Activity context, boolean state) {

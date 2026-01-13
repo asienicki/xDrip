@@ -6,11 +6,11 @@ package com.eveningoutpost.dexdrip;
 
 import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static com.eveningoutpost.dexdrip.Home.SHOWCASE_REMINDER3;
-import static com.eveningoutpost.dexdrip.Models.JoH.dateTimeText;
-import static com.eveningoutpost.dexdrip.Models.JoH.hourMinuteString;
-import static com.eveningoutpost.dexdrip.Models.JoH.msSince;
-import static com.eveningoutpost.dexdrip.Models.JoH.niceTimeScalarNatural;
-import static com.eveningoutpost.dexdrip.Models.JoH.tsl;
+import static com.eveningoutpost.dexdrip.models.JoH.dateTimeText;
+import static com.eveningoutpost.dexdrip.models.JoH.hourMinuteString;
+import static com.eveningoutpost.dexdrip.models.JoH.msSince;
+import static com.eveningoutpost.dexdrip.models.JoH.niceTimeScalarNatural;
+import static com.eveningoutpost.dexdrip.models.JoH.tsl;
 import static lecho.lib.hellocharts.animation.ChartDataAnimator.DEFAULT_ANIMATION_DURATION;
 
 import android.animation.ValueAnimator;
@@ -32,12 +32,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.CardView;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.helper.ItemTouchHelper;
+import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -65,17 +66,17 @@ import android.widget.RadioButton;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.Reminder;
-import com.eveningoutpost.dexdrip.Models.Treatments;
-import com.eveningoutpost.dexdrip.Models.UserError;
-import com.eveningoutpost.dexdrip.UtilityModels.Constants;
-import com.eveningoutpost.dexdrip.UtilityModels.JamorhamShowcaseDrawer;
-import com.eveningoutpost.dexdrip.UtilityModels.NotificationChannels;
-import com.eveningoutpost.dexdrip.UtilityModels.PersistentStore;
-import com.eveningoutpost.dexdrip.UtilityModels.Pref;
-import com.eveningoutpost.dexdrip.UtilityModels.ShotStateStore;
-import com.eveningoutpost.dexdrip.UtilityModels.SpeechUtil;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.Reminder;
+import com.eveningoutpost.dexdrip.models.Treatments;
+import com.eveningoutpost.dexdrip.models.UserError;
+import com.eveningoutpost.dexdrip.utilitymodels.Constants;
+import com.eveningoutpost.dexdrip.utilitymodels.JamorhamShowcaseDrawer;
+import com.eveningoutpost.dexdrip.utilitymodels.NotificationChannels;
+import com.eveningoutpost.dexdrip.utilitymodels.PersistentStore;
+import com.eveningoutpost.dexdrip.utilitymodels.Pref;
+import com.eveningoutpost.dexdrip.utilitymodels.ShotStateStore;
+import com.eveningoutpost.dexdrip.utilitymodels.SpeechUtil;
 import com.eveningoutpost.dexdrip.profileeditor.DatePickerFragment;
 import com.eveningoutpost.dexdrip.profileeditor.ProfileAdapter;
 import com.eveningoutpost.dexdrip.profileeditor.TimePickerFragment;
@@ -313,7 +314,9 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
     private void reloadList() {
         reminders.clear();
         reminders.addAll(Reminder.getAllReminders());
-        mAdapter.notifyDataSetChanged();
+        if (mAdapter != null) {
+            mAdapter.notifyDataSetChanged();
+        }
     }
 
 
@@ -543,29 +546,33 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
     }
 
     private void askWhenToReschedule(final Reminder remind) {
-        val now = tsl();
-        val oldt = remind.getPotentialNextSchedule();
-        val newt = now + remind.period;
-        val choice = String.format("%s:    %s  @  %s\n\nor\n\n%s:   %s  @  %s",
-                getString(R.string.old), niceTimeScalarNatural(-msSince(oldt)),hourMinuteString(oldt),
-                getString(R.string.neww), niceTimeScalarNatural(-msSince(newt)),hourMinuteString(newt));
-
-        val builder = new AlertDialog.Builder(this)
-                .setTitle(R.string.reschedule_with_new_timing)
-                .setMessage(choice);
-
-        builder.setPositiveButton(getString(R.string.old), (dialog, which) -> rescheduleNextOld(remind));
-        builder.setNegativeButton(getString(R.string.neww), (dialog, which) -> rescheduleNextNew(remind, newt));
-
-        val dialog = builder.create();
         try {
-            if (dialog.isShowing()) {
-                dialog.dismiss();
+            val now = tsl();
+            val oldt = remind.getPotentialNextSchedule();
+            val newt = now + remind.period;
+            val choice = String.format("%s:    %s  @  %s\n\nor\n\n%s:   %s  @  %s",
+                    xdrip.gs(R.string.old), niceTimeScalarNatural(-msSince(oldt)), hourMinuteString(oldt),
+                    xdrip.gs(R.string.neww), niceTimeScalarNatural(-msSince(newt)), hourMinuteString(newt));
+
+            val builder = new AlertDialog.Builder(this)
+                    .setTitle(R.string.reschedule_with_new_timing)
+                    .setMessage(choice);
+
+            builder.setPositiveButton(xdrip.gs(R.string.old), (dialog, which) -> rescheduleNextOld(remind));
+            builder.setNegativeButton(xdrip.gs(R.string.neww), (dialog, which) -> rescheduleNextNew(remind, newt));
+
+            val dialog = builder.create();
+            try {
+                if (dialog.isShowing()) {
+                    dialog.dismiss();
+                }
+            } catch (Exception e) {
+                //
             }
+            dialog.show();
         } catch (Exception e) {
-            //
+            UserError.Log.e(TAG, "Got exception in askWhenToReschedule: " + e);
         }
-        dialog.show();
     }
 
 
@@ -789,6 +796,10 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
         // TODO lock?
         Log.d(TAG, "child Reinjection position: " + i);
         reminders.add(i, reminder);
+        if (mAdapter == null) {
+            Log.d(TAG, "Returning from reinject as no UI adapter");
+            return;
+        }
         mAdapter.notifyItemInserted(i);
         final AtomicBoolean corrected = new AtomicBoolean();
 
@@ -803,12 +814,9 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
         if (highlighted < 2) {
             Log.d(TAG, "Reinjection: scrolling to: " + i);
             recyclerView.smoothScrollToPosition(i);
-            JoH.runOnUiThreadDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    // failsafe
-                    correctiveScrolling(i, corrected);
-                }
+            JoH.runOnUiThreadDelayed(() -> {
+                // failsafe
+                correctiveScrolling(i, corrected);
             }, 1000);
         } else {
             Log.d(TAG, "Not scrolling due to highlighted: " + highlighted);
@@ -1021,7 +1029,7 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
 
         dialogBuilder.setTitle(((reminder == null) ? xdrip.getAppContext().getString(R.string.title_add_reminder) : xdrip.getAppContext().getString(R.string.title_edit_reminder)));
         //dialogBuilder.setMessage("Enter text below");
-        dialogBuilder.setPositiveButton("Done", new DialogInterface.OnClickListener() {
+        dialogBuilder.setPositiveButton(xdrip.getAppContext().getString(R.string.done), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 String reminder_title = titleEditText.getText().toString().trim();
                 Log.d(TAG, "Got reminder title: " + reminder_title);
@@ -1260,17 +1268,21 @@ public class Reminders extends ActivityWithRecycler implements SensorEventListen
 
     private synchronized void hideSnoozeFloater() {
         if (!floaterHidden) {
-            animateSnoozeFloater(0, floatingsnooze.getHeight(), new AccelerateInterpolator(1.5f));
+            if (floatingsnooze != null) {
+                animateSnoozeFloater(0, floatingsnooze.getHeight(), new AccelerateInterpolator(1.5f));
+            }
             floaterHidden = true;
         }
     }
 
     private synchronized void showSnoozeFloater() {
         if (floaterHidden) {
-            animateSnoozeFloater(floatingsnooze.getHeight(), 0, new DecelerateInterpolator(1.5f));
             floaterHidden = false;
-            floatingsnooze.setVisibility(View.VISIBLE);
-            showcase(this, SHOWCASE_REMINDER3);
+            if (floatingsnooze != null) {
+                animateSnoozeFloater(floatingsnooze.getHeight(), 0, new DecelerateInterpolator(1.5f));
+                floatingsnooze.setVisibility(View.VISIBLE);
+                showcase(this, SHOWCASE_REMINDER3);
+            }
         }
         hideKeyboard(recyclerView);
     }

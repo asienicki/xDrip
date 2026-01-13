@@ -1,6 +1,6 @@
 package com.eveningoutpost.dexdrip;
 
-import android.app.Fragment;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -11,14 +11,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.databinding.DataBindingUtil;
+import androidx.databinding.DataBindingUtil;
+import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
 import android.graphics.Point;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
-import android.support.v4.content.LocalBroadcastManager;
+
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,36 +31,34 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.eveningoutpost.dexdrip.G5Model.Extensions;
-import com.eveningoutpost.dexdrip.G5Model.Transmitter;
-import com.eveningoutpost.dexdrip.ImportedLibraries.dexcom.Dex_Constants;
-import com.eveningoutpost.dexdrip.Models.ActiveBluetoothDevice;
-import com.eveningoutpost.dexdrip.Models.BgReading;
-import com.eveningoutpost.dexdrip.Models.Calibration;
-import com.eveningoutpost.dexdrip.Models.JoH;
-import com.eveningoutpost.dexdrip.Models.Sensor;
-import com.eveningoutpost.dexdrip.Models.TransmitterData;
-import com.eveningoutpost.dexdrip.Models.UserError;
-import com.eveningoutpost.dexdrip.Models.UserError.Log;
-import com.eveningoutpost.dexdrip.Services.DexCollectionService;
-import com.eveningoutpost.dexdrip.Services.G5CollectionService;
-import com.eveningoutpost.dexdrip.UtilityModels.CollectionServiceStarter;
-import com.eveningoutpost.dexdrip.UtilityModels.SensorStatus;
+import com.eveningoutpost.dexdrip.g5model.Extensions;
+import com.eveningoutpost.dexdrip.g5model.Transmitter;
+import com.eveningoutpost.dexdrip.importedlibraries.dexcom.Dex_Constants;
+import com.eveningoutpost.dexdrip.models.ActiveBluetoothDevice;
+import com.eveningoutpost.dexdrip.models.BgReading;
+import com.eveningoutpost.dexdrip.models.Calibration;
+import com.eveningoutpost.dexdrip.models.JoH;
+import com.eveningoutpost.dexdrip.models.TransmitterData;
+import com.eveningoutpost.dexdrip.models.UserError;
+import com.eveningoutpost.dexdrip.models.UserError.Log;
+import com.eveningoutpost.dexdrip.services.DexCollectionService;
+import com.eveningoutpost.dexdrip.services.G5CollectionService;
+import com.eveningoutpost.dexdrip.utilitymodels.CollectionServiceStarter;
+import com.eveningoutpost.dexdrip.utilitymodels.SensorStatus;
 import com.eveningoutpost.dexdrip.databinding.ActivitySystemStatusBinding;
 import com.eveningoutpost.dexdrip.ui.MicroStatus;
 import com.eveningoutpost.dexdrip.ui.MicroStatusImpl;
 import com.eveningoutpost.dexdrip.utils.DexCollectionType;
+import com.eveningoutpost.dexdrip.utils.LocationHelper;
 import com.eveningoutpost.dexdrip.wearintegration.WatchUpdaterService;
 import com.google.android.gms.wearable.DataMap;
 
 import java.lang.reflect.Method;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
 import static com.eveningoutpost.dexdrip.Home.startWatchUpdaterService;
+import static com.eveningoutpost.dexdrip.utils.DatabaseUtil.getDataBaseSizeInBytes;
 import static com.eveningoutpost.dexdrip.utils.DexCollectionType.DexcomG5;
 import static com.eveningoutpost.dexdrip.xdrip.gs;
 
@@ -81,6 +82,7 @@ public class SystemStatusFragment extends Fragment {
     private ActiveBluetoothDevice activeBluetoothDevice;
     private static final String TAG = "SystemStatus";
     private BroadcastReceiver serviceDataReceiver;
+    private TextView db_size_view;
 
     //@Inject
     MicroStatus microStatus;
@@ -178,6 +180,7 @@ public class SystemStatusFragment extends Fragment {
         sensor_status_view = (TextView) v.findViewById(R.id.sensor_status);
         transmitter_status_view = (TextView) v.findViewById(R.id.transmitter_status);
         current_device = (TextView) v.findViewById(R.id.remembered_device);
+        db_size_view = (TextView) v.findViewById(R.id.db_size);
 
         notes = (TextView) v.findViewById(R.id.other_notes);
 
@@ -239,6 +242,7 @@ public class SystemStatusFragment extends Fragment {
         setTransmitterStatus();
         setNotes();
         futureDataCheck();
+        setDbSize();
 
        /* if (notes.getText().length()==0) {
             notes.setText("Swipe for more status pages!");
@@ -275,6 +279,18 @@ public class SystemStatusFragment extends Fragment {
 
     }
 
+    private void setDbSize() {
+        long dbSizeLengthLong = getDataBaseSizeInBytes();
+        String dbSizeString = "0";
+        if (dbSizeLengthLong > 0) { // If there is a database
+            if (dbSizeLengthLong < 31457280) { // When smaller than 30M, round and show one decimal point
+                dbSizeString = JoH.roundFloat((float) dbSizeLengthLong / (1024 * 1024), 1) + "";
+            } else { // When greater than 30M, round and just show integer
+                dbSizeString = (int) (JoH.roundFloat((float) dbSizeLengthLong / (1024 * 1024), 0)) + "";
+            }
+            db_size_view.setText(dbSizeString + "M");
+        }
+    }
 
     private void setSensorStatus() {
         sensor_status_view.setText(SensorStatus.status());
@@ -286,7 +302,7 @@ public class SystemStatusFragment extends Fragment {
         try {
             versionName = safeGetContext().getPackageManager().getPackageInfo(safeGetContext().getPackageName(), PackageManager.GET_META_DATA).versionName;
             int versionNumber = safeGetContext().getPackageManager().getPackageInfo(safeGetContext().getPackageName(), PackageManager.GET_META_DATA).versionCode;
-            versionName += "\nCode: " + BuildConfig.buildVersion + "\nDowngradable to: " + versionNumber;
+            versionName += "\nCode: " + BuildConfig.buildVersion;
             version_name_view.setText(versionName);
         } catch (PackageManager.NameNotFoundException e) {
             //e.printStackTrace();
@@ -306,25 +322,34 @@ public class SystemStatusFragment extends Fragment {
         }
 
         String collection_method = prefs.getString("dex_collection_method", "BluetoothWixel");
-        if (collection_method.compareTo("DexcomG5") == 0) {
+        if (collection_method.compareTo("DexcomG5") == 0) { // TODO dex collection type
             Transmitter defaultTransmitter = new Transmitter(prefs.getString("dex_txid", "ABCDEF"));
             if (Build.VERSION.SDK_INT >= 18) {
                 mBluetoothAdapter = mBluetoothManager.getAdapter();
             }
             if (mBluetoothAdapter != null) {
-                Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-                if ((pairedDevices != null) && (pairedDevices.size() > 0)) {
-                    for (BluetoothDevice device : pairedDevices) {
-                        if (device.getName() != null) {
+                try {
+                    Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
+                    if ((pairedDevices != null) && (pairedDevices.size() > 0)) {
+                        for (BluetoothDevice device : pairedDevices) {
+                            if (device.getName() != null) {
 
-                            String transmitterIdLastTwo = Extensions.lastTwoCharactersOfString(defaultTransmitter.transmitterId);
-                            String deviceNameLastTwo = Extensions.lastTwoCharactersOfString(device.getName());
+                                String transmitterIdLastTwo = Extensions.lastTwoCharactersOfString(defaultTransmitter.transmitterId);
+                                String deviceNameLastTwo = Extensions.lastTwoCharactersOfString(device.getName());
 
-                            if (transmitterIdLastTwo.equals(deviceNameLastTwo)) {
-                                current_device.setText(defaultTransmitter.transmitterId);
+                                if (transmitterIdLastTwo.equals(deviceNameLastTwo)) {
+                                    current_device.setText(defaultTransmitter.transmitterId);
+                                }
+
                             }
-
                         }
+                    }
+                } catch (SecurityException e) {
+                    Log.d(TAG, "Got SecurityException in setCurrentDevice "+ e);
+                    try {
+                        LocationHelper.requestLocationForBluetooth(this.getActivity());
+                    } catch (Exception e1) {
+                        Log.d(TAG, "Got Exception in setCurrentDevice attempting to request location permissions"+ e1);
                     }
                 }
             } else {
@@ -357,18 +382,28 @@ public class SystemStatusFragment extends Fragment {
 
     private void setConnectionStatus() {
         boolean connected = false;
-        if (mBluetoothManager != null && activeBluetoothDevice != null && (Build.VERSION.SDK_INT >= 18)) {
-            for (BluetoothDevice bluetoothDevice : mBluetoothManager.getConnectedDevices(BluetoothProfile.GATT)) {
-                if (bluetoothDevice.getAddress().compareTo(activeBluetoothDevice.address) == 0) {
-                    connected = true;
+        try {
+            if (mBluetoothManager != null && activeBluetoothDevice != null && (Build.VERSION.SDK_INT >= 18)) {
+                for (BluetoothDevice bluetoothDevice : mBluetoothManager.getConnectedDevices(BluetoothProfile.GATT)) {
+                    if (bluetoothDevice.getAddress().compareTo(activeBluetoothDevice.address) == 0) {
+                        connected = true;
+                    }
                 }
             }
+
+            if (connected) {
+                connection_status.setText(safeGetContext().getString(R.string.connected));
+            } else {
+                connection_status.setText(safeGetContext().getString(R.string.not_connected));
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "Got SecurityException in setConnectionStatus ", e);
+            connection_status.setText(R.string.need_bluetooth_permission);
+        } catch (Exception e) {
+            connection_status.setText("Unknown");
+            Log.d(TAG, "Got Exception in setConnectionStatus "+ e);
         }
-        if (connected) {
-            connection_status.setText(safeGetContext().getString(R.string.connected));
-        } else {
-            connection_status.setText(safeGetContext().getString(R.string.not_connected));
-        }
+
 
         String collection_method = prefs.getString("dex_collection_method", "BluetoothWixel");
         if (collection_method.compareTo("DexcomG5") == 0) {
